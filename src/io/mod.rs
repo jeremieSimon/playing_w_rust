@@ -5,6 +5,7 @@ use std::io::{self, BufReader, BufWriter};
 
 use crate::compute;
 use std::time::Duration;
+use std::thread::JoinHandle;
 
 // READ
 pub fn read(filename: String) -> io::Result<(Sender<Vec<u8>>, Receiver<Vec<u8>>)> {
@@ -38,8 +39,23 @@ pub fn read_and_transform_to_work_unit<'a>(filename: String) -> (Sender<compute:
 
 
 // WRITE
-pub fn write(filename: String) {
-    // todo
+pub fn write(filename: String, io_out_receiver: Receiver<JoinHandle<Vec<u8>>>) -> io::Result<()> {
+    let f = File::create(filename)?;
+    let mut buf_writer = BufWriter::new(f);
+    loop {
+        let result = io_out_receiver.recv_timeout(Duration::from_millis(100));
+        if result.is_err() {
+            break;
+        }
+        let val = result.unwrap().join().unwrap();
+
+        //let val = result.join().unwrap();
+        let as_string = std::str::from_utf8(&val).unwrap();
+        buf_writer.write(&val).unwrap();
+    }
+
+    buf_writer.flush().unwrap();
+    return Ok(());
 }
 
 

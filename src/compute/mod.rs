@@ -10,6 +10,7 @@ pub struct MapLikeSeq {
     pub fs: Arc<Vec<MapLikeFunc>>
 }
 
+// todo need to make it work w thread pool
 impl MapLikeSeq where {
 
     pub fn new(funcs: Vec<MapLikeFunc>) -> Self {

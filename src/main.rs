@@ -13,6 +13,7 @@ mod io;
 fn main() {
 
     let filename_in = String::from("/Users/jeremiesimon/Desktop/coucou");
+    let filename_out = String::from("/Users/jeremiesimon/Desktop/coucou2");
 
     // example of the most simple graph possible
     let map_like_seq = compute::MapLikeSeq::new(vec![
@@ -24,19 +25,7 @@ fn main() {
     let (work_sender, work_receiver) = io::read_and_transform_to_work_unit(filename_in);
     // open compute
     let (io_out_sender, io_out_receiver) = map_like_seq.compute_async(work_sender, work_receiver);
-
     // io out:
-    loop {
-        let result = io_out_receiver.recv_timeout(Duration::from_millis(100));
-        if result.is_err() {
-            break;
-        }
-        let val = result.unwrap();
-        let result = val.join().unwrap();
-        let as_string = std::str::from_utf8(&result).unwrap();
-        let deserialized: stupid_work::TextAsTokens = serde_json::from_str(as_string).unwrap();
-        println!("deserialized = {:?}", deserialized);
-        println!("deserialized2 = {:?}", as_string);
-    }
+    io::write(filename_out, io_out_receiver);
 
 }
