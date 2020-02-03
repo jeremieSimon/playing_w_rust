@@ -20,7 +20,7 @@ pub fn read(filename: String) -> io::Result<(Sender<Vec<u8>>, Receiver<Vec<u8>>)
     Ok(((io_sender, io_receiver)))
 }
 
-pub fn read_and_transform_to_work_unit<'a>(filename: String, compute_node: &'a compute::ComputeNode<'a>) -> (Sender<compute::Work<'a>>, Receiver<compute::Work<'a>>) {
+pub fn read_and_transform_to_work_unit<'a>(filename: String) -> (Sender<compute::Work>, Receiver<compute::Work>) {
 
     let (io_sender, io_receiver) = read(filename).unwrap();
     let (work_sender, work_receiver) = channel();
@@ -30,7 +30,7 @@ pub fn read_and_transform_to_work_unit<'a>(filename: String, compute_node: &'a c
             break;
         }
         let bytes = result.unwrap();
-        let work = compute::Work{datum: bytes, compute_node: &compute_node};
+        let work = compute::Work{datum: bytes};
         work_sender.send(work);
     }
     return (work_sender, work_receiver);
