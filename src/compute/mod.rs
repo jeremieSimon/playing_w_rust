@@ -1,52 +1,68 @@
 use std::sync::mpsc::{channel, Sender, Receiver};
 use std::time::Duration;
+use std::sync::Arc;
+use std::thread::{JoinHandle, spawn};
 
 
-type MapLikeFunc = fn(xs: Vec<u8>) -> Vec<u8>;
+pub type MapLikeFunc = fn(xs: Vec<u8>) -> Vec<u8>;
 
-
-pub struct Work<'a> {
-    pub datum: Vec<u8>,
-    pub compute_node: &'a ComputeNode<'a>
+pub struct MapLikeSeq {
+    pub fs: Arc<Vec<MapLikeFunc>>
 }
 
-pub struct ComputeNode<'a> {
-    pub curr: MapLikeFunc,
-    pub next: Box<Option<&'a ComputeNode<'a>>>
-}
+impl MapLikeSeq where {
 
-pub fn compute<'a>(work_sender: Sender<Work<'a>>,
-                  work_receiver: Receiver<Work<'a>>) -> (Sender<Vec<u8>>, Receiver<Vec<u8>>){
-
-    let (io_out_sender, io_out_receiver) = channel();
-    loop {
-        let result = work_receiver.recv_timeout(Duration::from_millis(100));
-        if result.is_err() {
-            break;
-        }
-        // compute the work
-        let work = result.unwrap();
-        let f = work.compute_node.curr;
-        let val = f(work.datum);
-
-        // if more work, then push next task into queue
-        // else push into receiver queue
-        if work.compute_node.next.is_some() {
-            match work.compute_node.next.as_ref() {
-                Some(x) => {
-                    let w = Work {
-                        datum: val,
-                        compute_node: x
-                    };
-                    work_sender.send(w);
-                    {}
-                }
-                _ => {}
-            }
-        } else {
-            io_out_sender.send(val);
-        }
+    pub fn new(funcs: Vec<MapLikeFunc>) -> Self {
+        return MapLikeSeq{fs: Arc::new(funcs)};
     }
 
-    return (io_out_sender, io_out_receiver);
+    pub fn apply(&self, datum: Vec<u8>) -> Vec<u8> {
+        let mut dat = datum.clone();
+        let fs = Arc::clone(&self.fs);
+        for i in 0..fs.len() {
+            let f = fs[i];
+            dat = f(dat);
+        }
+        return dat;
+    }
+
+    pub fn apply_async(&self, datum: Vec<u8>) -> JoinHandle<Vec<u8>> {
+        let mut dat = datum.clone();
+        let fs = Arc::clone(&self.fs);
+        return spawn(move || {
+            for i in 0..fs.len() {
+                let f = fs[i];
+                dat = f(dat);
+            }
+            return dat;
+        });
+    }
+
+    pub fn map_async(&self, data: Vec<Vec<u8>>) -> Vec<JoinHandle<Vec<u8>>> {
+        let mut handles = vec![];
+        for datum in data {
+            handles.push(self.apply_async(datum));
+        }
+        return handles;
+    }
+
+    pub fn compute_async(&self,
+                     work_sender: Sender<Work>,
+                     work_receiver: Receiver<Work>) -> (Sender<JoinHandle<Vec<u8>>>, Receiver<JoinHandle<Vec<u8>>>) {
+        let (io_out_sender, io_out_receiver) = channel();
+        loop {
+            let result = work_receiver.recv_timeout(Duration::from_millis(100));
+            if result.is_err() {
+                break;
+            }
+            let work = result.unwrap();
+            io_out_sender.send(self.apply_async(work.datum));
+        }
+
+        return (io_out_sender, io_out_receiver);
+    }
+}
+
+pub struct Work {
+    pub datum: Vec<u8>,
 }
