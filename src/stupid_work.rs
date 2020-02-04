@@ -51,3 +51,11 @@ pub fn tokens_to_json(tokens: Vec<u8>) -> Vec<u8> {
     let serialized = serde_json::to_string(&text_as_tokens).unwrap();
     return serialized.as_bytes().to_owned();
 }
+
+pub fn add_one(xs: Vec<f64>) -> Vec<f64> {
+    return xs.iter().map(|x| {x + 1.}).collect();
+}
+
+pub fn square(xs: Vec<f64>) -> Vec<f64> {
+    return xs.iter().map(|x| {x.powf(2.)}).collect();
+}
