@@ -56,7 +56,3 @@ pub fn write(filename: String, io_out_receiver: Receiver<JoinHandle<Vec<u8>>>) -
     buf_writer.flush().unwrap();
     return Ok(());
 }
-
-
-
-

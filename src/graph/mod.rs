@@ -3,41 +3,42 @@ use std::cell::RefCell;
 use std::collections::{VecDeque, HashMap};
 use std::fmt;
 use uuid::Uuid;
+use std::sync::Arc;
 
 
-pub struct ComputeGraph {
-    pub root: Rc<SimpleGraphNode>,
-    internal_root: Rc<InternalGraphNode>,
+pub struct ComputeGraph<T> where T: Clone {
+    pub root: Rc<SimpleGraphNode<T>>,
+    internal_root: Rc<InternalGraphNode<T>>,
 }
 
-impl ComputeGraph {
+impl <T> ComputeGraph<T> where T: Clone {
 
-    pub fn new(root: Rc<SimpleGraphNode>) -> ComputeGraph {
+    pub fn new(root: Rc<SimpleGraphNode<T>>) -> ComputeGraph<T> {
         return ComputeGraph {
             root: Rc::clone(&root),
             internal_root: InternalGraphNode::to_internal_graph_node(Rc::clone(&root)),
         };
     }
 
-    pub fn apply(&self, datum: Vec<f64>) -> Vec<f64> {
+    pub fn apply(&self, datum: Vec<T>) -> Vec<T> {
         return self.internal_root.apply(datum);
     }
 }
 
 // exposed graph structure
-pub type GraphLikeFunc = fn (xs: Vec<f64>) -> Vec<f64>;
+pub type GraphLikeFunc<T> = fn (xs: Vec<T>) -> Vec<T>;
 
-pub struct SimpleGraphNode {
-    pub f: GraphLikeFunc,
+pub struct SimpleGraphNode<T> where T: Clone {
+    pub f: GraphLikeFunc<T>,
     pub m: String,
-    pub children: Vec<Rc<SimpleGraphNode>>,
+    pub children: Vec<Rc<SimpleGraphNode<T>>>,
     pub id: Uuid,
 
 }
 
-impl SimpleGraphNode {
+impl <T> SimpleGraphNode<T> where T: Clone {
 
-    pub fn new(f: GraphLikeFunc, m: String, children: Vec<Rc<SimpleGraphNode>>) -> Self {
+    pub fn new(f: GraphLikeFunc<T>, m: String, children: Vec<Rc<SimpleGraphNode<T>>>) -> Self {
         return SimpleGraphNode {
                 f,
                 m,
@@ -48,29 +49,28 @@ impl SimpleGraphNode {
 }
 
 // internal graph construct.
-type ParentRefs = RefCell<Vec<Rc<InternalGraphNode>>>;
-
+type ParentRefs<T> = RefCell<Vec<Rc<InternalGraphNode<T>>>>;
 
 // for the internal structure each node points to its parents.
 // because of the non-natural way to express such a graph, we keep this representation private.
-pub struct InternalGraphNode {
-    f: GraphLikeFunc,
+pub struct InternalGraphNode<T> {
+    f: GraphLikeFunc<T>,
     m: String,
-    parents: ParentRefs,
+    parents: ParentRefs<T>,
     id: Uuid,
 }
 
-impl fmt::Display for InternalGraphNode {
+impl <T> fmt::Display for InternalGraphNode<T> where T: Clone {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "id: {}, m: {}", self.id, self.m)
     }
 }
 
-impl InternalGraphNode {
+impl <T> InternalGraphNode<T> where T: Clone {
 
     // we start from the root node, and build a transpose of the given graph.
     // ref: https://en.wikipedia.org/wiki/Transpose_graph
-    fn to_internal_graph_node(node: Rc<SimpleGraphNode>) -> Rc<InternalGraphNode> {
+    fn to_internal_graph_node(node: Rc<SimpleGraphNode<T>>) -> Rc<InternalGraphNode<T>> {
         let mut nodes = VecDeque::new();
         let mut internal_nodes = VecDeque::new();
         let mut id_to_internal_node = HashMap::new();
@@ -94,7 +94,7 @@ impl InternalGraphNode {
 
             for child in node.children.iter() {
 
-                let new_internal: Rc<InternalGraphNode> = {
+                let new_internal: Rc<InternalGraphNode<T>> = {
                     if id_to_internal_node.contains_key(&child.id) {
                         Rc::clone(&id_to_internal_node.get(&child.id).unwrap())
                     } else {
@@ -118,7 +118,7 @@ impl InternalGraphNode {
     }
 
     // recursively apply.
-    fn apply(&self, datum: Vec<f64>) -> Vec<f64> {
+    fn apply(&self, datum: Vec<T>) -> Vec<T> {
         let f = self.f;
         let mut data = vec![];
         if self.parents.borrow().len() == 0 {
@@ -131,3 +131,4 @@ impl InternalGraphNode {
         return f(data);
     }
 }
+
