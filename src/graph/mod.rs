@@ -1,10 +1,10 @@
 use std::rc::Rc;
 use std::cell::RefCell;
-use std::borrow::Borrow;
-use std::collections::{VecDeque, HashSet, HashMap};
+use std::collections::{VecDeque, HashMap};
 use std::fmt;
+use uuid::Uuid;
 
-static mut COUNTER: i32 = 0;
+
 pub struct ComputeGraph {
     pub root: Rc<SimpleGraphNode>,
     internal_root: Rc<InternalGraphNode>,
@@ -24,38 +24,40 @@ impl ComputeGraph {
     }
 }
 
+// exposed graph structure
 pub type GraphLikeFunc = fn (xs: Vec<f64>) -> Vec<f64>;
 
 pub struct SimpleGraphNode {
     pub f: GraphLikeFunc,
     pub m: String,
     pub children: Vec<Rc<SimpleGraphNode>>,
-    pub id: i32,
+    pub id: Uuid,
 
 }
+
 impl SimpleGraphNode {
 
     pub fn new(f: GraphLikeFunc, m: String, children: Vec<Rc<SimpleGraphNode>>) -> Self {
-        unsafe {
-            COUNTER += 1;
-            return SimpleGraphNode {
+        return SimpleGraphNode {
                 f,
                 m,
                 children,
-                id: COUNTER,
-            };
-        }
+                id: Uuid::new_v4(),
+        };
     }
 }
 
+// internal graph construct.
+type ParentRefs = RefCell<Vec<Rc<InternalGraphNode>>>;
 
-type parent_refs = RefCell<Vec<Rc<InternalGraphNode>>>;
 
+// for the internal structure each node points to its parents.
+// because of the non-natural way to express such a graph, we keep this representation private.
 pub struct InternalGraphNode {
     f: GraphLikeFunc,
     m: String,
-    parents: parent_refs,
-    id: i32,
+    parents: ParentRefs,
+    id: Uuid,
 }
 
 impl fmt::Display for InternalGraphNode {
@@ -66,6 +68,8 @@ impl fmt::Display for InternalGraphNode {
 
 impl InternalGraphNode {
 
+    // we start from the root node, and build a transpose of the given graph.
+    // ref: https://en.wikipedia.org/wiki/Transpose_graph
     fn to_internal_graph_node(node: Rc<SimpleGraphNode>) -> Rc<InternalGraphNode> {
         let mut nodes = VecDeque::new();
         let mut internal_nodes = VecDeque::new();

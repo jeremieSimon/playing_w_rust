@@ -3,6 +3,7 @@ use std::time::Duration;
 use std::panic::resume_unwind;
 use std::sync::Arc;
 use std::rc::Rc;
+use uuid::Uuid;
 
 extern crate serde;
 extern crate serde_json;
