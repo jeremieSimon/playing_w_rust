@@ -79,6 +79,14 @@ impl <T> fmt::Display for InternalGraphNode<T> where T: Clone {
 
 impl <T> InternalGraphNode<T> where T: Clone {
 
+    fn empty(f: GraphLikeFunc<T>, m: String, id: Uuid,) -> InternalGraphNode<T> {
+        return InternalGraphNode {
+            f,
+            m,
+            id,
+            parents: RefCell::new(vec![])
+        };
+    }
     // we start from the root node, and build a transpose of the given graph.
     // ref: https://en.wikipedia.org/wiki/Transpose_graph
     fn to_internal_graph_node(node: Rc<GraphNode<T>>) -> Rc<InternalGraphNode<T>> {
@@ -86,12 +94,7 @@ impl <T> InternalGraphNode<T> where T: Clone {
         let mut internal_nodes = VecDeque::new();
         let mut id_to_internal_node = HashMap::new();
 
-        let internal = InternalGraphNode {
-            f: node.f,
-            m: node.m.clone(),
-            id: node.id,
-            parents: RefCell::new(vec![])
-        };
+        let internal = InternalGraphNode::empty(node.f, node.m.clone(), node.id);
 
         let mut internal_rc = Rc::new(internal);
 
@@ -109,12 +112,7 @@ impl <T> InternalGraphNode<T> where T: Clone {
                     if id_to_internal_node.contains_key(&child.id) {
                         Rc::clone(&id_to_internal_node.get(&child.id).unwrap())
                     } else {
-                        Rc::new(InternalGraphNode {
-                            f: child.f,
-                            m: child.m.clone(),
-                            id: child.id,
-                            parents: RefCell::new(vec![])
-                        })
+                        Rc::new(InternalGraphNode::empty(child.f, child.m.clone(),child.id))
                     }
                 };
                 new_internal.parents.borrow_mut().push(Rc::clone(&internal_node));
