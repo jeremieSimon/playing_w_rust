@@ -4,6 +4,8 @@ use std::panic::resume_unwind;
 use std::sync::Arc;
 use std::rc::Rc;
 use uuid::Uuid;
+use crate::graph::{GraphNode};
+use crate::graph::concurrent::{ConcurrentInternalGraphNode, ConcurrentGraphNode};
 
 extern crate serde;
 extern crate serde_json;
@@ -14,7 +16,7 @@ mod io;
 mod graph;
 
 fn main() {
-    graph_example();
+    concurrent_graph_example();
 }
 
 fn pipe_example() {
@@ -35,19 +37,38 @@ fn pipe_example() {
     io::write(filename_out, io_out_receiver);
 }
 
+fn concurrent_graph_example() {
+
+    let last_node = Arc::new(ConcurrentGraphNode::new(stupid_work::square,
+                                                  String::from("last node"),
+                                                  vec![]));
+    let mid_node1 = Arc::new(ConcurrentGraphNode::new(stupid_work::add_one,
+                                                  String::from("mid node 1"),
+                                                  vec![Arc::clone(&last_node)]));
+    let mid_node2 = Arc::new(ConcurrentGraphNode::new(stupid_work::add_one,
+                                                  String::from("mid node 2"),
+                                                  vec![Arc::clone(&last_node)]));
+    let start_node = Arc::new(ConcurrentGraphNode::new(stupid_work::add_one,
+                                                   String::from("start node"),
+                                                   vec![Arc::clone(&mid_node1), Arc::clone(&mid_node2)]));
+
+
+    let internal = ConcurrentInternalGraphNode::to_internal_graph_node(Arc::clone(&start_node));
+}
+
 fn graph_example() {
-    let last_node = Rc::new(graph::SimpleGraphNode::new(stupid_work::square,
-                                                        String::from("last node"),
-                                                        vec![]));
-    let mid_node1 = Rc::new(graph::SimpleGraphNode::new(stupid_work::add_one,
-                                                        String::from("mid node 1"),
-                                                        vec![Rc::clone(&last_node)]));
-    let mid_node2 = Rc::new(graph::SimpleGraphNode::new(stupid_work::add_one,
-                                                        String::from("mid node 2"),
-                                                        vec![Rc::clone(&last_node)]));
-    let start_node = Rc::new(graph::SimpleGraphNode::new(stupid_work::add_one,
-                                                         String::from("start node"),
-                                                         vec![Rc::clone(&mid_node1), Rc::clone(&mid_node2)]));
+    let last_node = Rc::new(graph::GraphNode::new(stupid_work::square,
+                                                  String::from("last node"),
+                                                  vec![]));
+    let mid_node1 = Rc::new(graph::GraphNode::new(stupid_work::add_one,
+                                                  String::from("mid node 1"),
+                                                  vec![Rc::clone(&last_node)]));
+    let mid_node2 = Rc::new(graph::GraphNode::new(stupid_work::add_one,
+                                                  String::from("mid node 2"),
+                                                  vec![Rc::clone(&last_node)]));
+    let start_node = Rc::new(graph::GraphNode::new(stupid_work::add_one,
+                                                   String::from("start node"),
+                                                   vec![Rc::clone(&mid_node1), Rc::clone(&mid_node2)]));
 
     let compute_graph = graph::ComputeGraph::new(start_node);
     let applied_all = compute_graph.apply(vec![1.0, 2.0]);

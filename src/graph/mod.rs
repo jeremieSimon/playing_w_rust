@@ -4,16 +4,21 @@ use std::collections::{VecDeque, HashMap};
 use std::fmt;
 use uuid::Uuid;
 use std::sync::Arc;
+use atomic_refcell;
+use std::borrow::BorrowMut;
 
 
+pub mod concurrent;
+
+// exposed graph structure
 pub struct ComputeGraph<T> where T: Clone {
-    pub root: Rc<SimpleGraphNode<T>>,
+    pub root: Rc<GraphNode<T>>,
     internal_root: Rc<InternalGraphNode<T>>,
 }
 
 impl <T> ComputeGraph<T> where T: Clone {
 
-    pub fn new(root: Rc<SimpleGraphNode<T>>) -> ComputeGraph<T> {
+    pub fn new(root: Rc<GraphNode<T>>) -> ComputeGraph<T> {
         return ComputeGraph {
             root: Rc::clone(&root),
             internal_root: InternalGraphNode::to_internal_graph_node(Rc::clone(&root)),
@@ -25,21 +30,23 @@ impl <T> ComputeGraph<T> where T: Clone {
     }
 }
 
-// exposed graph structure
 pub type GraphLikeFunc<T> = fn (xs: Vec<T>) -> Vec<T>;
 
-pub struct SimpleGraphNode<T> where T: Clone {
+// *****************
+// graph node region
+// *****************
+pub struct GraphNode<T> where T: Clone {
     pub f: GraphLikeFunc<T>,
     pub m: String,
-    pub children: Vec<Rc<SimpleGraphNode<T>>>,
-    pub id: Uuid,
+    pub children: Vec<Rc<GraphNode<T>>>,
+    id: Uuid,
 
 }
 
-impl <T> SimpleGraphNode<T> where T: Clone {
+impl <T> GraphNode<T> where T: Clone {
 
-    pub fn new(f: GraphLikeFunc<T>, m: String, children: Vec<Rc<SimpleGraphNode<T>>>) -> Self {
-        return SimpleGraphNode {
+    pub fn new(f: GraphLikeFunc<T>, m: String, children: Vec<Rc<GraphNode<T>>>) -> Self {
+        return GraphNode {
                 f,
                 m,
                 children,
@@ -48,7 +55,9 @@ impl <T> SimpleGraphNode<T> where T: Clone {
     }
 }
 
-// internal graph construct.
+// ****************************
+// internal graph constructs.
+// ****************************
 type ParentRefs<T> = RefCell<Vec<Rc<InternalGraphNode<T>>>>;
 
 // for the internal structure each node points to its parents.
@@ -70,7 +79,7 @@ impl <T> InternalGraphNode<T> where T: Clone {
 
     // we start from the root node, and build a transpose of the given graph.
     // ref: https://en.wikipedia.org/wiki/Transpose_graph
-    fn to_internal_graph_node(node: Rc<SimpleGraphNode<T>>) -> Rc<InternalGraphNode<T>> {
+    fn to_internal_graph_node(node: Rc<GraphNode<T>>) -> Rc<InternalGraphNode<T>> {
         let mut nodes = VecDeque::new();
         let mut internal_nodes = VecDeque::new();
         let mut id_to_internal_node = HashMap::new();
