@@ -3,7 +3,6 @@ use std::io::prelude::*;
 use std::fs::File;
 use std::io::{self, BufReader, BufWriter};
 
-use crate::pipeline;
 use std::time::Duration;
 use std::thread::JoinHandle;
 

@@ -1,13 +1,11 @@
-use std::sync::mpsc::{channel, Sender, Receiver};
-use std::time::Duration;
-use std::panic::resume_unwind;
 use std::sync::Arc;
 use std::rc::Rc;
-use uuid::Uuid;
-use crate::graph::serial::{GraphNode, ComputeGraph};
-use crate::graph::concurrent::{ConcurrentGraphNode,
-                               ConcurrentComputeGraph};
 use std::thread::spawn;
+
+use crate::graph::serial::{GraphNode, ComputeGraph};
+use crate::graph::easy_functions;
+use crate::graph::concurrent::{ConcurrentGraphNode, ConcurrentComputeGraph};
+use crate::pipeline::word_count::WordCount;
 
 extern crate serde;
 extern crate serde_json;
@@ -18,17 +16,18 @@ mod io;
 mod graph;
 
 fn main() {
-    graph_example();
-    concurrent_graph_example();
-    pipe_example();
+//    graph_example();
+//    concurrent_graph_example();
+//    pipe_example();
+    word_count();
 }
 
-fn pipe_example() {
+fn par_map_example() {
     let filename_in = String::from("/Users/jeremiesimon/Desktop/coucou");
     let filename_out = String::from("/Users/jeremiesimon/Desktop/coucou2");
 
     // example of the most simple graph possible
-    let map_like_seq = pipeline::MapLikeSeq::new(vec![
+    let map_like_seq = pipeline::par_map::MapLikeSeq::new(vec![
         stupid_work::raw_to_text,
         stupid_work::text_to_tokens,
         stupid_work::tokens_to_json]);
@@ -43,16 +42,16 @@ fn pipe_example() {
 
 fn concurrent_graph_example() {
 
-    let last_node = Arc::new(ConcurrentGraphNode::new(stupid_work::square,
+    let last_node = Arc::new(ConcurrentGraphNode::new(easy_functions::square,
                                                   String::from("last node"),
                                                   vec![]));
-    let mid_node1 = Arc::new(ConcurrentGraphNode::new(stupid_work::add_one,
+    let mid_node1 = Arc::new(ConcurrentGraphNode::new(easy_functions::add_one,
                                                   String::from("mid node 1"),
                                                   vec![Arc::clone(&last_node)]));
-    let mid_node2 = Arc::new(ConcurrentGraphNode::new(stupid_work::add_five,
+    let mid_node2 = Arc::new(ConcurrentGraphNode::new(easy_functions::add_five,
                                                   String::from("mid node 2"),
                                                   vec![Arc::clone(&last_node)]));
-    let start_node = Arc::new(ConcurrentGraphNode::new(stupid_work::add_one,
+    let start_node = Arc::new(ConcurrentGraphNode::new(easy_functions::add_one,
                                                    String::from("start node"),
                                                    vec![Arc::clone(&mid_node1), Arc::clone(&mid_node2)]));
 
@@ -66,16 +65,16 @@ fn concurrent_graph_example() {
 }
 
 fn graph_example() {
-    let last_node = Rc::new(GraphNode::new(stupid_work::square,
+    let last_node = Rc::new(GraphNode::new(easy_functions::square,
                                                   String::from("last node"),
                                                   vec![]));
-    let mid_node1 = Rc::new(GraphNode::new(stupid_work::add_one,
+    let mid_node1 = Rc::new(GraphNode::new(easy_functions::add_one,
                                                   String::from("mid node 1"),
                                                   vec![Rc::clone(&last_node)]));
-    let mid_node2 = Rc::new(GraphNode::new(stupid_work::add_one,
+    let mid_node2 = Rc::new(GraphNode::new(easy_functions::add_one,
                                                   String::from("mid node 2"),
                                                   vec![Rc::clone(&last_node)]));
-    let start_node = Rc::new(GraphNode::new(stupid_work::add_one,
+    let start_node = Rc::new(GraphNode::new(easy_functions::add_one,
                                                    String::from("start node"),
                                                    vec![Rc::clone(&mid_node1), Rc::clone(&mid_node2)]));
 
@@ -84,4 +83,20 @@ fn graph_example() {
     println!("{:?}", applied_all);
     let batch_result = compute_graph.apply_batch(vec![vec![1.0, 2.0]]);
     println!("{:?}", batch_result);
+}
+
+fn word_count() {
+    let line = String::from("hello world yo universe hello yp yo yop");
+    let bytes = line.as_bytes().to_vec();
+    let word_count_pipeline = pipeline::map_reduce::PipelineStage{
+        map_func: pipeline::word_count::word_count_mapper,
+        reduce_func: pipeline::word_count::word_count_reducer,
+    };
+
+    let map_output = word_count_pipeline.apply_map(bytes);
+    let shuffle_output = word_count_pipeline.apply_shuffle(map_output);
+    let reduce_output = word_count_pipeline.apply_reduce(shuffle_output);
+    for (k, v) in reduce_output.iter() {
+        println!("{}, {}", k, v);
+    }
 }

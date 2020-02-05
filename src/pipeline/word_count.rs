@@ -1,9 +1,5 @@
-
-
-pub use crate::pipeline::Keyable;
-use std::cell::{RefCell, Ref};
-use std::borrow::{BorrowMut, Borrow};
-
+pub use crate::pipeline::map_reduce::Keyable;
+use std::cell::{Ref};
 
 pub struct WordCount {
     word: String,
@@ -20,17 +16,16 @@ impl Keyable<String, i32> for WordCount {
     }
 }
 
-pub fn word_count_mapper(raw: Vec<u8>) -> Vec<Box<Keyable<String, i32>>> {
+pub fn word_count_mapper(raw: Vec<u8>) -> Vec<Box<dyn Keyable<String, i32>>> {
     // 1. turn into text
     let full_text = std::str::from_utf8(&raw).unwrap();
 
     // 2. turn into tokens
-    let mut word_counts: Vec<Box<Keyable<String, i32>>> = vec![];
+    let mut word_counts: Vec<Box<dyn Keyable<String, i32>>> = vec![];
     for token in full_text.to_lowercase().split(" ") {
         word_counts.push(Box::new(WordCount{word: String::from(token), count: 1}));
     }
 
-    // 3.
     return word_counts;
 }
 

@@ -38,7 +38,7 @@ pub fn text_to_tokens(text: Vec<u8>) -> Vec<u8> {
     }
 
     let text_as_tokens = TextAsTokens{
-        tokens: tokens,
+        tokens,
         ts: text.ts,
         version: text.version
     };
@@ -52,14 +52,4 @@ pub fn tokens_to_json(tokens: Vec<u8>) -> Vec<u8> {
     return serialized.as_bytes().to_owned();
 }
 
-pub fn add_one(xs: Vec<f64>) -> Vec<f64> {
-    return xs.iter().map(|x| {x + 1.}).collect();
-}
 
-pub fn add_five(xs: Vec<f64>) -> Vec<f64> {
-    return xs.iter().map(|x| {x + 5.}).collect();
-}
-
-pub fn square(xs: Vec<f64>) -> Vec<f64> {
-    return xs.iter().map(|x| {x.powf(2.)}).collect();
-}
