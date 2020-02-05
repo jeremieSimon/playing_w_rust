@@ -49,7 +49,7 @@ fn concurrent_graph_example() {
     let mid_node1 = Arc::new(ConcurrentGraphNode::new(stupid_work::add_one,
                                                   String::from("mid node 1"),
                                                   vec![Arc::clone(&last_node)]));
-    let mid_node2 = Arc::new(ConcurrentGraphNode::new(stupid_work::add_one,
+    let mid_node2 = Arc::new(ConcurrentGraphNode::new(stupid_work::add_five,
                                                   String::from("mid node 2"),
                                                   vec![Arc::clone(&last_node)]));
     let start_node = Arc::new(ConcurrentGraphNode::new(stupid_work::add_one,
@@ -59,7 +59,7 @@ fn concurrent_graph_example() {
     let concurrent_graph = ConcurrentComputeGraph::new(Arc::clone(&start_node));
 
     let handle = spawn(move || {
-        return concurrent_graph.apply(vec![1.0, 2.0]);
+        return concurrent_graph.apply_batch(vec![vec![1.0, 2.0], vec![5.0, 5.0]]);
     });
     let results = handle.join().unwrap();
     println!("{:?}", results)

@@ -27,6 +27,10 @@ impl <T> ConcurrentComputeGraph<T> where T: Clone {
     pub fn apply(&self, datum: Vec<T>) -> Vec<T> {
         return self.internal_root.apply(datum);
     }
+
+    pub fn apply_batch(&self, data: Vec<Vec<T>>) -> Vec<Vec<T>> {
+        return self.internal_root.apply_batch(data);
+    }
 }
 
 // ****************************
@@ -117,6 +121,21 @@ impl <T> ConcurrentInternalGraphNode <T> where T: Clone {
             data.extend(result);
         }
         return f(data);
+    }
+
+    // given the tap node, apply starting from sink node up to the tap.
+    // to be used for concurrent application.
+    fn apply_batch(&self, batch: Vec<Vec<T>>) -> Vec<Vec<T>> {
+        let f = self.f;
+        let mut data: Vec<Vec<T>> = Vec::new();
+        if self.parents.len() == 0 {
+            return batch.iter().map(|xs| f(xs.to_vec())).collect();
+        }
+        for parent in &self.parents{
+            let result = parent.apply_batch(batch.clone());
+            data.extend(result);
+        }
+        return data.iter().map(|xs| f(xs.to_vec())).collect();
     }
 }
 
