@@ -20,6 +20,7 @@ mod io;
 mod graph;
 
 fn main() {
+    graph_example();
     concurrent_graph_example();
 }
 
@@ -81,5 +82,7 @@ fn graph_example() {
 
     let compute_graph = graph::ComputeGraph::new(start_node);
     let applied_all = compute_graph.apply(vec![1.0, 2.0]);
-    println!("{:?}", applied_all)
+    println!("{:?}", applied_all);
+    let batch_result = compute_graph.apply_batch(vec![vec![1.0, 2.0]]);
+    println!("{:?}", batch_result);
 }

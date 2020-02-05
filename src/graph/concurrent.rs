@@ -24,7 +24,7 @@ impl <T> ConcurrentComputeGraph<T> where T: Clone {
         }
     }
 
-    pub fn apply(&self, datum: Vec<T>) -> Vec<T> {
+    fn apply(&self, datum: Vec<T>) -> Vec<T> {
         return self.internal_root.apply(datum);
     }
 
@@ -131,7 +131,7 @@ impl <T> ConcurrentInternalGraphNode <T> where T: Clone {
         if self.parents.len() == 0 {
             return batch.iter().map(|xs| f(xs.to_vec())).collect();
         }
-        for parent in &self.parents{
+        for parent in &self.parents {
             let result = parent.apply_batch(batch.clone());
             data.extend(result);
         }

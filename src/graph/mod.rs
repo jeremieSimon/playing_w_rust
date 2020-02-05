@@ -10,6 +10,8 @@ use std::borrow::BorrowMut;
 
 pub mod concurrent;
 
+pub type GraphLikeFunc<T> = fn (xs: Vec<T>) -> Vec<T>;
+
 // exposed graph structure
 pub struct ComputeGraph<T> where T: Clone {
     pub root: Rc<GraphNode<T>>,
@@ -28,9 +30,12 @@ impl <T> ComputeGraph<T> where T: Clone {
     pub fn apply(&self, datum: Vec<T>) -> Vec<T> {
         return self.internal_root.apply(datum);
     }
+
+    pub fn apply_batch(&self, data: Vec<Vec<T>>) -> Vec<Vec<T>> {
+        return self.internal_root.apply_batch(data);
+    }
 }
 
-pub type GraphLikeFunc<T> = fn (xs: Vec<T>) -> Vec<T>;
 
 // *****************
 // graph node region
@@ -139,6 +144,19 @@ impl <T> InternalGraphNode<T> where T: Clone {
             data.extend(result);
         }
         return f(data);
+    }
+
+    fn apply_batch(&self, batch: Vec<Vec<T>>) -> Vec<Vec<T>> {
+        let f = self.f;
+        let mut data: Vec<Vec<T>> = Vec::new();
+        if self.parents.borrow().len() == 0 {
+            return batch.iter().map(|xs| f(xs.to_vec())).collect();
+        }
+        for parent in self.parents.borrow().iter() {
+            let result = parent.apply_batch(batch.clone());
+            data.extend(result);
+        }
+        return data.iter().map(|xs| f(xs.to_vec())).collect();
     }
 }
 
