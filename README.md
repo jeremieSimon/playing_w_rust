@@ -1,4 +1,4 @@
-###Playing w rust
+### Playing w rust
 The main piece is in the graph package. 
 Given a user defined graph (concurrent or not)
  
