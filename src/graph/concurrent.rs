@@ -9,6 +9,26 @@ use std::borrow::BorrowMut;
 
 pub use crate::graph::GraphLikeFunc;
 
+// exposed graph structure
+pub struct ConcurrentComputeGraph<T> where T: Clone {
+    pub root: Arc<ConcurrentGraphNode<T>>,
+    internal_root: Arc<ConcurrentInternalGraphNode<T>>,
+}
+
+impl <T> ConcurrentComputeGraph<T> where T: Clone {
+
+    pub fn new(root: Arc<ConcurrentGraphNode<T>>) -> ConcurrentComputeGraph<T> {
+        return ConcurrentComputeGraph {
+            root: Arc::clone(&root),
+            internal_root: ConcurrentInternalGraphNode::from(ConcurrentTmpInternalGraphNode::to_internal_graph_node(Arc::clone(&root))),
+        }
+    }
+
+    pub fn apply(&self, datum: Vec<T>) -> Vec<T> {
+        return self.internal_root.apply(datum);
+    }
+}
+
 // ****************************
 // concurrent graph node region
 // ****************************
@@ -39,11 +59,15 @@ impl <T> ConcurrentGraphNode<T> where T: Clone {
     }
 }
 
-// ****************************
-// internal concurrent graph constructs.
-// ****************************
-// here, we're using atomic_refcell instead of RwLock because
-type ConcurrentParentRefs<T> = atomic_refcell::AtomicRefCell<Vec<Arc<ConcurrentInternalGraphNode<T>>>>;
+// *******************************
+// internal concurrent graph repr.
+// NOTE: (README) ----------------------------------------------------------------------------------
+// We have 2 internal repr of the graph, one mutable and one immutable.
+// The mutable one is only used temporarly to allow us to transpose the graph that is user generated.
+// The immutable one, is the one we keep in the structure of the compute graph.
+// Having an immutable graph makes is a little bit faster when dealing with high concurrency.
+// *******************************
+type ConcurrentParentRefs<T> = Vec<Arc<ConcurrentInternalGraphNode<T>>>;
 
 // for the internal structure each node points to its parents.
 // because of the non-natural way to express such a graph, we keep this representation private.
@@ -54,28 +78,89 @@ pub struct ConcurrentInternalGraphNode<T> {
     id: Uuid,
 }
 
-impl <T> fmt::Display for ConcurrentInternalGraphNode<T> where T: Clone {
+impl <T> ConcurrentInternalGraphNode <T> where T: Clone {
+
+    fn from(sink_node: Arc<ConcurrentTmpInternalGraphNode<T>>) -> Arc<ConcurrentInternalGraphNode<T>> {
+        if sink_node.parents.borrow().len() == 0 {
+            return Arc::new(ConcurrentInternalGraphNode {
+                f: sink_node.f,
+                m: sink_node.m.clone(),
+                id: sink_node.id,
+                parents: vec![],
+            });
+        }
+
+        let mut parents = Vec::new();
+        for parent in sink_node.parents.borrow().iter() {
+            let n = ConcurrentInternalGraphNode::from(Arc::clone(parent));
+            parents.push(n);
+        }
+
+        return Arc::new(ConcurrentInternalGraphNode {
+            f: sink_node.f,
+            m: sink_node.m.clone(),
+            id: sink_node.id,
+            parents,
+        });
+    }
+
+    // given the tap node, apply starting from sink node up to the tap.
+    // to be used for concurrent application.
+    fn apply(&self, datum: Vec<T>) -> Vec<T> {
+        let f = self.f;
+        let mut data = vec![];
+        if self.parents.len() == 0 {
+            return f(datum);
+        }
+        for parent in &self.parents{
+            let result = parent.apply(datum.clone());
+            data.extend(result);
+        }
+        return f(data);
+    }
+}
+
+
+// *******************************
+// internal temporary concurrent graph repr, on which we allow mutation.
+// *******************************
+type ConcurrentParentMutablRefs<T> = atomic_refcell::AtomicRefCell<Vec<Arc<ConcurrentTmpInternalGraphNode<T>>>>;
+// for the internal structure each node points to its parents.
+// because of the non-natural way to express such a graph, we keep this representation private.
+pub struct ConcurrentTmpInternalGraphNode<T> {
+    f: GraphLikeFunc<T>,
+    m: String,
+    parents: ConcurrentParentMutablRefs<T>,
+    id: Uuid,
+}
+
+impl <T> fmt::Display for ConcurrentTmpInternalGraphNode<T> where T: Clone {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "id: {}, m: {}", self.id, self.m)
     }
 }
 
-impl <T> ConcurrentInternalGraphNode<T> where T: Clone {
+impl <T> ConcurrentTmpInternalGraphNode<T> where T: Clone {
+
+    fn empty(f: GraphLikeFunc<T>, m: String, id: Uuid) -> ConcurrentTmpInternalGraphNode<T> {
+        return ConcurrentTmpInternalGraphNode {
+            f,
+            m,
+            id,
+            parents: atomic_refcell::AtomicRefCell::new(vec![])
+        };
+    }
     // we start from the root node, and build a transpose of the given graph.
     // ref: https://en.wikipedia.org/wiki/Transpose_graph
-    pub fn to_internal_graph_node(node: Arc<ConcurrentGraphNode<T>>) -> Arc<ConcurrentInternalGraphNode<T>> {
+    fn to_internal_graph_node(node: Arc<ConcurrentGraphNode<T>>) -> Arc<ConcurrentTmpInternalGraphNode<T>> {
 
         // 1. declare all necessary structures
         let mut nodes = VecDeque::new();
         let mut internal_nodes = VecDeque::new();
         let mut id_to_internal_node = HashMap::new();
 
-        let internal = ConcurrentInternalGraphNode {
-            f: node.f,
-            m: node.m.clone(),
-            id: node.id,
-            parents: atomic_refcell::AtomicRefCell::new(vec![])
-        };
+
+        let internal = ConcurrentTmpInternalGraphNode::empty(node.f, node.m.clone(), node.id);
 
         let mut internal_arc = Arc::new(internal);
 
@@ -92,16 +177,11 @@ impl <T> ConcurrentInternalGraphNode<T> where T: Clone {
             for child in node.children.iter() {
 
                 // either get back already built node if it exists or create a new one.
-                let new_internal: Arc<ConcurrentInternalGraphNode<T>> = {
+                let new_internal: Arc<ConcurrentTmpInternalGraphNode<T>> = {
                     if id_to_internal_node.contains_key(&child.id) {
                         Arc::clone(&id_to_internal_node.get(&child.id).unwrap())
                     } else {
-                        Arc::new(ConcurrentInternalGraphNode {
-                            f: child.f,
-                            m: child.m.clone(),
-                            id: child.id,
-                            parents: atomic_refcell::AtomicRefCell::new(vec![])
-                        })
+                        Arc::new(ConcurrentTmpInternalGraphNode::empty(child.f, child.m.clone(), child.id))
                     }
                 };
                 new_internal.parents.borrow_mut().push(Arc::clone(&internal_node));

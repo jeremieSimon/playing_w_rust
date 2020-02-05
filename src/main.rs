@@ -5,7 +5,11 @@ use std::sync::Arc;
 use std::rc::Rc;
 use uuid::Uuid;
 use crate::graph::{GraphNode};
-use crate::graph::concurrent::{ConcurrentInternalGraphNode, ConcurrentGraphNode};
+use crate::graph::concurrent::{ConcurrentTmpInternalGraphNode,
+                               ConcurrentGraphNode,
+                               ConcurrentInternalGraphNode,
+                               ConcurrentComputeGraph};
+use std::thread::spawn;
 
 extern crate serde;
 extern crate serde_json;
@@ -52,8 +56,13 @@ fn concurrent_graph_example() {
                                                    String::from("start node"),
                                                    vec![Arc::clone(&mid_node1), Arc::clone(&mid_node2)]));
 
+    let concurrent_graph = ConcurrentComputeGraph::new(Arc::clone(&start_node));
 
-    let internal = ConcurrentInternalGraphNode::to_internal_graph_node(Arc::clone(&start_node));
+    let handle = spawn(move || {
+        return concurrent_graph.apply(vec![1.0, 2.0]);
+    });
+    let results = handle.join().unwrap();
+    println!("{:?}", results)
 }
 
 fn graph_example() {

@@ -126,7 +126,8 @@ impl <T> InternalGraphNode<T> where T: Clone {
         return internal_rc;
     }
 
-    // recursively apply.
+    // given the tap node, apply starting from sink node up to the tap.
+    // fits for general purpose computation.
     fn apply(&self, datum: Vec<T>) -> Vec<T> {
         let f = self.f;
         let mut data = vec![];
