@@ -4,10 +4,8 @@ use std::panic::resume_unwind;
 use std::sync::Arc;
 use std::rc::Rc;
 use uuid::Uuid;
-use crate::graph::{GraphNode};
-use crate::graph::concurrent::{ConcurrentTmpInternalGraphNode,
-                               ConcurrentGraphNode,
-                               ConcurrentInternalGraphNode,
+use crate::graph::serial::{GraphNode, ComputeGraph};
+use crate::graph::concurrent::{ConcurrentGraphNode,
                                ConcurrentComputeGraph};
 use std::thread::spawn;
 
@@ -67,20 +65,20 @@ fn concurrent_graph_example() {
 }
 
 fn graph_example() {
-    let last_node = Rc::new(graph::GraphNode::new(stupid_work::square,
+    let last_node = Rc::new(GraphNode::new(stupid_work::square,
                                                   String::from("last node"),
                                                   vec![]));
-    let mid_node1 = Rc::new(graph::GraphNode::new(stupid_work::add_one,
+    let mid_node1 = Rc::new(GraphNode::new(stupid_work::add_one,
                                                   String::from("mid node 1"),
                                                   vec![Rc::clone(&last_node)]));
-    let mid_node2 = Rc::new(graph::GraphNode::new(stupid_work::add_one,
+    let mid_node2 = Rc::new(GraphNode::new(stupid_work::add_one,
                                                   String::from("mid node 2"),
                                                   vec![Rc::clone(&last_node)]));
-    let start_node = Rc::new(graph::GraphNode::new(stupid_work::add_one,
+    let start_node = Rc::new(GraphNode::new(stupid_work::add_one,
                                                    String::from("start node"),
                                                    vec![Rc::clone(&mid_node1), Rc::clone(&mid_node2)]));
 
-    let compute_graph = graph::ComputeGraph::new(start_node);
+    let compute_graph = ComputeGraph::new(start_node);
     let applied_all = compute_graph.apply(vec![1.0, 2.0]);
     println!("{:?}", applied_all);
     let batch_result = compute_graph.apply_batch(vec![vec![1.0, 2.0]]);
