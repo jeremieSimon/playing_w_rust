@@ -21,7 +21,7 @@ pub fn read(filename: String) -> io::Result<(Sender<Vec<u8>>, Receiver<Vec<u8>>)
     Ok(((io_sender, io_receiver)))
 }
 
-pub fn read_and_transform_to_work_unit<'a>(filename: String) -> (Sender<pipeline::Work>, Receiver<pipeline::Work>) {
+pub fn read_and_transform_to_work_unit<'a>(filename: String) -> (Sender<Vec<u8>>, Receiver<Vec<u8>>) {
 
     let (io_sender, io_receiver) = read(filename).unwrap();
     let (work_sender, work_receiver) = channel();
@@ -31,8 +31,7 @@ pub fn read_and_transform_to_work_unit<'a>(filename: String) -> (Sender<pipeline
             break;
         }
         let bytes = result.unwrap();
-        let work = pipeline::Work{datum: bytes};
-        work_sender.send(work);
+        work_sender.send(bytes);
     }
     return (work_sender, work_receiver);
 }

@@ -20,6 +20,7 @@ mod graph;
 fn main() {
     graph_example();
     concurrent_graph_example();
+    pipe_example();
 }
 
 fn pipe_example() {

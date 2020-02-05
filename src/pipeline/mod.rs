@@ -11,7 +11,7 @@ pub struct MapLikeSeq {
 }
 
 // todo need to make it work w thread pool
-impl MapLikeSeq where {
+impl MapLikeSeq {
 
     pub fn new(funcs: Vec<MapLikeFunc>) -> Self {
         return MapLikeSeq{fs: Arc::new(funcs)};
@@ -48,8 +48,8 @@ impl MapLikeSeq where {
     }
 
     pub fn compute_async(&self,
-                     work_sender: Sender<Work>,
-                     work_receiver: Receiver<Work>) -> (Sender<JoinHandle<Vec<u8>>>, Receiver<JoinHandle<Vec<u8>>>) {
+                     work_sender: Sender<Vec<u8>>,
+                     work_receiver: Receiver<Vec<u8>>) -> (Sender<JoinHandle<Vec<u8>>>, Receiver<JoinHandle<Vec<u8>>>) {
         let (io_out_sender, io_out_receiver) = channel();
         loop {
             let result = work_receiver.recv_timeout(Duration::from_millis(100));
@@ -57,13 +57,9 @@ impl MapLikeSeq where {
                 break;
             }
             let work = result.unwrap();
-            io_out_sender.send(self.apply_async(work.datum));
+            io_out_sender.send(self.apply_async(work));
         }
 
         return (io_out_sender, io_out_receiver);
     }
-}
-
-pub struct Work {
-    pub datum: Vec<u8>,
 }
