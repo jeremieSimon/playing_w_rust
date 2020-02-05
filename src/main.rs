@@ -30,8 +30,8 @@ fn main() {
 }
 
 fn par_map_example() {
-    let filename_in = String::from("/Users/jeremiesimon/Desktop/coucou");
-    let filename_out = String::from("/Users/jeremiesimon/Desktop/coucou2");
+    let filename_in = String::from("data/data.txt");
+    let filename_out = String::from("data/data_out.txt");
 
     // example of the most simple graph possible
     let map_like_seq = pipeline::par_map::MapLikeSeq::new(vec![
@@ -48,6 +48,16 @@ fn par_map_example() {
 }
 
 fn concurrent_graph_example() {
+    //                      SIMPLE GRAPH EXAMPLE
+    //
+    //                        add_one node (mid node 1) \
+    //                   /                               \
+    //                  /
+    // add_one node (starting node)                         square node (last node)
+    //                  \                                 /
+    //                   \  add_five node (mid node 2)   /
+    //
+    //
 
     let last_node = Arc::new(ConcurrentGraphNode::new(easy_functions::square,
                                                   String::from("last node"),
@@ -72,6 +82,16 @@ fn concurrent_graph_example() {
 }
 
 fn graph_example() {
+    //                      SIMPLE GRAPH EXAMPLE
+    //
+    //                       add_one node (mid node 1) \
+    //                   /                              \
+    //                  /
+    // add_one node (starting node)                     square node (last node)
+    //                  \                                /
+    //                   \  add_one node (mid node 2)   /
+    //
+    //
     let last_node = Rc::new(GraphNode::new(easy_functions::square,
                                                   String::from("last node"),
                                                   vec![]));

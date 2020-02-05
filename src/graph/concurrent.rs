@@ -62,7 +62,7 @@ impl <T> ConcurrentGraphNode<T> where T: Clone {
 
 // *******************************
 // internal concurrent graph repr.
-// NOTE: (README) ----------------------------------------------------------------------------------
+// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! NOTE: (README) !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 // We have 2 internal repr of the graph, one mutable and one immutable.
 // The mutable one is only used temporarly to allow us to transpose the graph that is user generated.
 // The immutable one, is the one we keep in the structure of the compute graph.
