@@ -16,9 +16,16 @@ mod io;
 mod graph;
 
 fn main() {
-//    graph_example();
-//    concurrent_graph_example();
-//    pipe_example();
+    println!("--- playing w graph");
+    graph_example();
+
+    println!("--- playing w concurrent graph");
+    concurrent_graph_example();
+
+    println!("--- playing w a par map example");
+    par_map_example();
+
+    println!("--- playing w a simple map reduce");
     word_count();
 }
 
@@ -61,7 +68,7 @@ fn concurrent_graph_example() {
         return concurrent_graph.apply_batch(vec![vec![1.0, 2.0], vec![5.0, 5.0]]);
     });
     let results = handle.join().unwrap();
-    println!("{:?}", results)
+    println!("batch mode: {:?}", results)
 }
 
 fn graph_example() {
@@ -80,22 +87,20 @@ fn graph_example() {
 
     let compute_graph = ComputeGraph::new(start_node);
     let applied_all = compute_graph.apply(vec![1.0, 2.0]);
-    println!("{:?}", applied_all);
+    println!("single mode {:?}", applied_all);
     let batch_result = compute_graph.apply_batch(vec![vec![1.0, 2.0]]);
-    println!("{:?}", batch_result);
+    println!("batch mode {:?}", batch_result);
 }
 
 fn word_count() {
     let line = String::from("hello world yo universe hello yp yo yop");
     let bytes = line.as_bytes().to_vec();
-    let word_count_pipeline = pipeline::map_reduce::PipelineStage{
+    let word_count_pipeline = pipeline::map_reduce::MapReduce {
         map_func: pipeline::word_count::word_count_mapper,
         reduce_func: pipeline::word_count::word_count_reducer,
     };
 
-    let map_output = word_count_pipeline.apply_map(bytes);
-    let shuffle_output = word_count_pipeline.apply_shuffle(map_output);
-    let reduce_output = word_count_pipeline.apply_reduce(shuffle_output);
+    let reduce_output = word_count_pipeline.apply(bytes);
     for (k, v) in reduce_output.iter() {
         println!("{}, {}", k, v);
     }
