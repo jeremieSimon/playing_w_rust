@@ -30,6 +30,6 @@ pub fn word_count_mapper(raw: Vec<u8>) -> Vec<Box<dyn Keyable<String, i32>>> {
 }
 
 pub fn word_count_reducer(key: String, vs: Ref<Vec<i32>>) -> (String, i32) {
-    let mut sum = vs.iter().sum();
+    let sum = vs.iter().sum();
     return (key, sum);
 }

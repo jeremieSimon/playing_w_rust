@@ -21,7 +21,7 @@ impl <T> ConcurrentComputeGraph<T> where T: Clone {
         }
     }
 
-    fn apply(&self, datum: Vec<T>) -> Vec<T> {
+    pub fn apply(&self, datum: Vec<T>) -> Vec<T> {
         return self.internal_root.apply(datum);
     }
 
