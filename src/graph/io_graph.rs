@@ -21,6 +21,7 @@ pub struct IoInternalGraphNode<T> {
     pub children: ConcurrentParentRefs<T>,
     pub id: Uuid,
     pub joinable: i32,
+    pub forkable: bool,
 }
 
 impl <T> IoInternalGraphNode<T> where T: Clone + Send + Sync + Copy + fmt::Display + fmt::Debug + 'static {
@@ -85,15 +86,28 @@ impl <T> IoInternalGraphNode<T> where T: Clone + Send + Sync + Copy + fmt::Displ
     }
 
     pub fn to_exec_plan(node: Arc<IoInternalGraphNode<T>>) -> (Arc<IoInternalGraphNode<T>>, Vec<(String, GraphLikeFunc<T>)>) {
-        let mut name_and_funcs: Vec<(String, GraphLikeFunc<T>)> = vec![(node.name.clone(), node.f)];
+
+        let mut name_and_funcs: Vec<(String, GraphLikeFunc<T>)> = vec![];
         let mut last_node = Arc::clone(&node);
-        for child in node.children.borrow().iter() {
-            name_and_funcs.push((child.name.clone(), child.f));
-            last_node = Arc::clone(&child);
-            if child.forkable || child.joinable != 0 {
+        let mut nodes = VecDeque::new();
+        let mut stop_node = false;
+
+        nodes.push_back(Arc::clone(&node));
+
+        while nodes.len() != 0 {
+            let node = nodes.pop_front().unwrap();
+
+            name_and_funcs.push((node.name.clone(), node.f));
+            last_node = Arc::clone(&node);
+
+            if node.forkable || node.joinable != 0 {
                 break;
             }
+            for child in node.children.borrow().iter() {
+                nodes.push_back(Arc::clone(child));
+            }
         }
+
         return (last_node , name_and_funcs)
     }
 
