@@ -35,7 +35,7 @@ impl <T> ConcurrentComputeGraph<T> where T: Clone {
 // ****************************
 pub struct ConcurrentGraphNode<T> where T: Clone {
     pub f: GraphLikeFunc<T>,
-    pub m: String,
+    pub name: String,
     pub children: Vec<Arc<ConcurrentGraphNode<T>>>,
     id: Uuid,
 }
@@ -45,7 +45,7 @@ impl <T> ConcurrentGraphNode<T> where T: Clone {
     pub fn new(f: GraphLikeFunc<T>, m: String, children: Vec<Arc<ConcurrentGraphNode<T>>>) -> Self {
         return ConcurrentGraphNode {
             f,
-            m,
+            name: m,
             children,
             id: Uuid::new_v4(),
         };
@@ -53,7 +53,7 @@ impl <T> ConcurrentGraphNode<T> where T: Clone {
     pub fn empty(f: GraphLikeFunc<T>, m: String) -> Self {
         return ConcurrentGraphNode {
             f,
-            m,
+            name: m,
             id: Uuid::new_v4(),
             children: vec![],
         };
@@ -74,7 +74,7 @@ type ConcurrentParentRefs<T> = Vec<Arc<ConcurrentInternalGraphNode<T>>>;
 // because of the non-natural way to express such a graph, we keep this representation private.
 pub struct ConcurrentInternalGraphNode<T> {
     f: GraphLikeFunc<T>,
-    m: String,
+    name: String,
     parents: ConcurrentParentRefs<T>,
     id: Uuid,
 }
@@ -85,7 +85,7 @@ impl <T> ConcurrentInternalGraphNode <T> where T: Clone {
         if sink_node.parents.borrow().len() == 0 {
             return Arc::new(ConcurrentInternalGraphNode {
                 f: sink_node.f,
-                m: sink_node.m.clone(),
+                name: sink_node.name.clone(),
                 id: sink_node.id,
                 parents: vec![],
             });
@@ -99,7 +99,7 @@ impl <T> ConcurrentInternalGraphNode <T> where T: Clone {
 
         return Arc::new(ConcurrentInternalGraphNode {
             f: sink_node.f,
-            m: sink_node.m.clone(),
+            name: sink_node.name.clone(),
             id: sink_node.id,
             parents,
         });
@@ -145,14 +145,14 @@ type ConcurrentParentMutablRefs<T> = atomic_refcell::AtomicRefCell<Vec<Arc<Concu
 // because of the non-natural way to express such a graph, we keep this representation private.
 pub struct ConcurrentTmpInternalGraphNode<T> {
     f: GraphLikeFunc<T>,
-    m: String,
+    name: String,
     parents: ConcurrentParentMutablRefs<T>,
     id: Uuid,
 }
 
 impl <T> fmt::Display for ConcurrentTmpInternalGraphNode<T> where T: Clone {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "id: {}, m: {}", self.id, self.m)
+        write!(f, "id: {}, m: {}", self.id, self.name)
     }
 }
 
@@ -161,7 +161,7 @@ impl <T> ConcurrentTmpInternalGraphNode<T> where T: Clone {
     fn empty(f: GraphLikeFunc<T>, m: String, id: Uuid) -> ConcurrentTmpInternalGraphNode<T> {
         return ConcurrentTmpInternalGraphNode {
             f,
-            m,
+            name: m,
             id,
             parents: atomic_refcell::AtomicRefCell::new(vec![])
         };
@@ -176,7 +176,7 @@ impl <T> ConcurrentTmpInternalGraphNode<T> where T: Clone {
         let mut id_to_internal_node = HashMap::new();
 
 
-        let internal = ConcurrentTmpInternalGraphNode::empty(node.f, node.m.clone(), node.id);
+        let internal = ConcurrentTmpInternalGraphNode::empty(node.f, node.name.clone(), node.id);
 
         let mut internal_arc = Arc::new(internal);
 
@@ -197,7 +197,7 @@ impl <T> ConcurrentTmpInternalGraphNode<T> where T: Clone {
                     if id_to_internal_node.contains_key(&child.id) {
                         Arc::clone(&id_to_internal_node.get(&child.id).unwrap())
                     } else {
-                        Arc::new(ConcurrentTmpInternalGraphNode::empty(child.f, child.m.clone(), child.id))
+                        Arc::new(ConcurrentTmpInternalGraphNode::empty(child.f, child.name.clone(), child.id))
                     }
                 };
                 new_internal.parents.borrow_mut().push(Arc::clone(&internal_node));

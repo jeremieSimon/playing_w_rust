@@ -42,7 +42,8 @@ For this graph we take a different approach. We say that for some graphs with fo
             node_3  
 ```
 
-`node_2` and `node_3` can be executed in different threads. 
+`node_2` and `node_3` can be executed in different threads.
+The motivation here is to say that if operators are I/O bounded, then having a single thread blocking until a syscall comes back is a waste of resources.
 
 
 

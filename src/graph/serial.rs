@@ -36,7 +36,7 @@ impl <T> ComputeGraph<T> where T: Clone {
 // *****************
 pub struct GraphNode<T> where T: Clone {
     pub f: GraphLikeFunc<T>,
-    pub m: String,
+    pub name: String,
     pub children: Vec<Rc<GraphNode<T>>>,
     id: Uuid,
 
@@ -47,7 +47,7 @@ impl <T> GraphNode<T> where T: Clone {
     pub fn new(f: GraphLikeFunc<T>, m: String, children: Vec<Rc<GraphNode<T>>>) -> Self {
         return GraphNode {
             f,
-            m,
+            name: m,
             children,
             id: Uuid::new_v4(),
         };
@@ -63,14 +63,14 @@ type ParentRefs<T> = RefCell<Vec<Rc<InternalGraphNode<T>>>>;
 // because of the non-natural way to express such a graph, we keep this representation private.
 pub struct InternalGraphNode<T> {
     f: GraphLikeFunc<T>,
-    m: String,
+    name: String,
     parents: ParentRefs<T>,
     id: Uuid,
 }
 
 impl <T> fmt::Display for InternalGraphNode<T> where T: Clone {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "id: {}, m: {}", self.id, self.m)
+        write!(f, "id: {}, m: {}", self.id, self.name)
     }
 }
 
@@ -79,7 +79,7 @@ impl <T> InternalGraphNode<T> where T: Clone {
     fn empty(f: GraphLikeFunc<T>, m: String, id: Uuid,) -> InternalGraphNode<T> {
         return InternalGraphNode {
             f,
-            m,
+            name: m,
             id,
             parents: RefCell::new(vec![])
         };
@@ -91,7 +91,7 @@ impl <T> InternalGraphNode<T> where T: Clone {
         let mut internal_nodes = VecDeque::new();
         let mut id_to_internal_node = HashMap::new();
 
-        let internal = InternalGraphNode::empty(node.f, node.m.clone(), node.id);
+        let internal = InternalGraphNode::empty(node.f, node.name.clone(), node.id);
 
         let mut internal_rc = Rc::new(internal);
 
@@ -109,7 +109,7 @@ impl <T> InternalGraphNode<T> where T: Clone {
                     if id_to_internal_node.contains_key(&child.id) {
                         Rc::clone(&id_to_internal_node.get(&child.id).unwrap())
                     } else {
-                        Rc::new(InternalGraphNode::empty(child.f, child.m.clone(),child.id))
+                        Rc::new(InternalGraphNode::empty(child.f, child.name.clone(), child.id))
                     }
                 };
                 new_internal.parents.borrow_mut().push(Rc::clone(&internal_node));
