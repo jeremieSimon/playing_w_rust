@@ -1,11 +1,11 @@
-### Playing w rust
+### Playing w/ rust
 
 ### Graph Package
 In this package there are 3 different implementations of `ComputableGraph`: A normal (serial) implementation, and 2 concurrent ones.
 
 **Logic Flow**\
 At a very high level, the flow is as follow: given a user defined graph (concurrent or not)
-- We build a new internal representation so that instead of having the parent node pointing to the children, we have child nodes pointing to theirs respective parents.
+- We build a new internal representation so that instead of having the parent node pointing to their children, we have child nodes pointing to theirs respective parents.
  This makes the computation easier. 
  The concurrent graph is just an extension of the normal one except that we use `Arc` instead of `Rc`. 
 - Both graph can work on a datum or a batch of data. 
@@ -17,7 +17,7 @@ The user if this API can then divide its data so that each datum, can run in a d
 The concurrent graph is therefore optimized for **throughput**. 
 This approach has the following pros:
 1. Have a perfect maximization of the CPU usage with minimal interrupts.\
-If we're executing our code on a 4 core machines, we can have 4 batch running at the time. Every time a batch is completed, a Thread is taking the next batch to process from a queue.
+If we're executing our code on a 4 core machines, we can have 4 batches running at the time. Every time a batch is completed, a Thread is taking the next batch to process from a queue. This process continues until there is no more data to process.
 
 2. Performance is very predictable\
 For applications with strict SLAs, predictability in performance is key. You want your performance to have very little variance.
@@ -42,7 +42,7 @@ For this graph we take a different approach. We say that for some graphs with fo
             node_3  
 ```
 
-`node_2` and `node_3` can be executed in different thread. 
+`node_2` and `node_3` can be executed in different threads. 
 
 
 
