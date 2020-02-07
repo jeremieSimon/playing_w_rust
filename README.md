@@ -9,12 +9,13 @@ At a very high level, the flow is as follow: given a user defined graph (concurr
  This makes the computation easier. 
  The concurrent graph is just an extension of the normal one except that we use `Arc` instead of `Rc`. 
 - Both graph can work on a datum or a batch of data. 
+- The IoGraph has more metadata attached to its node, to facilitate `Fork` and `Join` operations. 
 
 ### *Parallelism Design*
 #
 **The `ConcurrentComputeGraph`**\
 For a single datum or batch of data, each node is ran within the same thread.  
-The user if this API can then divide its data so that each datum, can run in a different thread.
+The user of this API can then divide its data so that each datum, can run in a different thread.
 The concurrent graph is therefore optimized for **throughput**. 
 This approach has the following pros:
 1. Have a perfect maximization of the CPU usage with minimal interrupts.\
@@ -89,7 +90,12 @@ In the example above, the execution plan will look like this.\
 --------------------------------**Thread4**: `[node_4 -> node_6, node_6 -> node_7]`\
 ----------------------------------------------------------------------------------**Thread5**: `[node_7 -> node_8]`
 
-This is not very optimal because the you could argue that **Thread2** should fork directly which is not what's happening in the current implementation.
+Note that this not completely optimal because 
+- you could argue that **Thread2** should fork directly which is not what's happening in the current implementation.
+- the join strategy could be much smarter. \
+For now, on join, we wait until all threads have completed. In a better impl we could have the scheduler to keep scheduling new `plan` while it waits for others to join. \
+In the above example, it doesn't make much diff at there are not many joins, but on large graph it could bring huge gains, especially when dealing with long I/O nodes.
+  
 
 #
 ### The Pipeline package
