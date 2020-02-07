@@ -5,12 +5,10 @@ use std::sync::Arc;
 use atomic_refcell;
 use std::thread::{spawn, JoinHandle};
 
-
 pub use crate::graph::GraphLikeFunc;
 use crate::graph::concurrent::{ConcurrentGraphNode, ConcurrentInternalGraphNode, ConcurrentTmpInternalGraphNode};
 
 
-//
 // exposed graph structure
 pub struct IoConcurrentComputeGraph<T> where T: Clone {
     pub root: Arc<ConcurrentGraphNode<T>>,
@@ -35,13 +33,13 @@ type ConcurrentParentRefs<T> = atomic_refcell::AtomicRefCell<Vec<Arc<IoInternalG
 // for the internal structure each node points to its parents.
 // because of the non-natural way to express such a graph, we keep this representation private.
 #[derive(Debug)]
-pub struct IoInternalGraphNode<T> {
-    pub f: GraphLikeFunc<T>,
-    pub name: String,
-    pub children: ConcurrentParentRefs<T>,
-    pub id: Uuid,
-    pub n_parents: i32,
-    pub forkable: bool,
+struct IoInternalGraphNode<T> {
+    f: GraphLikeFunc<T>,
+    name: String,
+    children: ConcurrentParentRefs<T>,
+    id: Uuid,
+    n_parents: i32,
+    forkable: bool,
 }
 
 impl <T> fmt::Display for IoInternalGraphNode<T> where T: Clone {
@@ -50,13 +48,12 @@ impl <T> fmt::Display for IoInternalGraphNode<T> where T: Clone {
     }
 }
 
-
 impl <T> IoInternalGraphNode<T> where T: Clone + Send + Sync + Copy + fmt::Display + fmt::Debug + 'static {
 
     // ********************
     // Scheduling Region
     // ********************
-    pub fn schedule_bfs(root: Arc<IoInternalGraphNode<T>>, datum: Vec<T>) -> Vec<T> {
+    fn schedule_bfs(root: Arc<IoInternalGraphNode<T>>, datum: Vec<T>) -> Vec<T> {
         let mut nodes = HashMap::new();
         let mut bfs_q = VecDeque::new();
         let mut uuid_to_handles: HashMap<Uuid, Vec<JoinHandle<Vec<T>>>> = HashMap::new();
@@ -151,7 +148,7 @@ impl <T> IoInternalGraphNode<T> where T: Clone + Send + Sync + Copy + fmt::Displ
     // *******************************
     // Building Internal Struct Region
     // *******************************
-    pub fn from(root: Arc<ConcurrentGraphNode<T>>) -> Arc<IoInternalGraphNode<T>> {
+    fn from(root: Arc<ConcurrentGraphNode<T>>) -> Arc<IoInternalGraphNode<T>> {
 
         let new_root = IoInternalGraphNode {
             f: root.f,
