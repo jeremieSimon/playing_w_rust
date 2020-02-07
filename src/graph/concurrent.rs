@@ -1,4 +1,4 @@
-use std::collections::{VecDeque, HashMap};
+use std::collections::{VecDeque, HashMap, HashSet};
 use std::fmt;
 use uuid::Uuid;
 use std::sync::Arc;
@@ -37,7 +37,7 @@ pub struct ConcurrentGraphNode<T> where T: Clone {
     pub f: GraphLikeFunc<T>,
     pub name: String,
     pub children: Vec<Arc<ConcurrentGraphNode<T>>>,
-    id: Uuid,
+    pub (in crate::graph) id: Uuid,
 }
 
 impl <T> ConcurrentGraphNode<T> where T: Clone {
@@ -73,15 +73,15 @@ type ConcurrentParentRefs<T> = Vec<Arc<ConcurrentInternalGraphNode<T>>>;
 // for the internal structure each node points to its parents.
 // because of the non-natural way to express such a graph, we keep this representation private.
 pub struct ConcurrentInternalGraphNode<T> {
-    f: GraphLikeFunc<T>,
-    name: String,
-    parents: ConcurrentParentRefs<T>,
-    id: Uuid,
+    pub (in crate::graph) f: GraphLikeFunc<T>,
+    pub (in crate::graph) name: String,
+    pub (in crate::graph) parents: ConcurrentParentRefs<T>,
+    pub (in crate::graph) id: Uuid,
 }
 
 impl <T> ConcurrentInternalGraphNode <T> where T: Clone {
 
-    fn from(sink_node: Arc<ConcurrentTmpInternalGraphNode<T>>) -> Arc<ConcurrentInternalGraphNode<T>> {
+    pub (in crate::graph)  fn from(sink_node: Arc<ConcurrentTmpInternalGraphNode<T>>) -> Arc<ConcurrentInternalGraphNode<T>> {
         if sink_node.parents.borrow().len() == 0 {
             return Arc::new(ConcurrentInternalGraphNode {
                 f: sink_node.f,
@@ -168,27 +168,28 @@ impl <T> ConcurrentTmpInternalGraphNode<T> where T: Clone {
     }
     // we start from the root node, and build a transpose of the given graph.
     // ref: https://en.wikipedia.org/wiki/Transpose_graph
-    fn to_internal_graph_node(node: Arc<ConcurrentGraphNode<T>>) -> Arc<ConcurrentTmpInternalGraphNode<T>> {
+    pub (in crate::graph) fn to_internal_graph_node(node: Arc<ConcurrentGraphNode<T>>) -> Arc<ConcurrentTmpInternalGraphNode<T>> {
 
         // 1. declare all necessary structures
-        let mut nodes = VecDeque::new();
+        let mut bfs_q = VecDeque::new();
         let mut internal_nodes = VecDeque::new();
         let mut id_to_internal_node = HashMap::new();
-
+        let mut id_to_parent_ids: HashMap<Uuid, HashSet<Uuid>> = HashMap::new(); // avoid counting a node multiple times.
 
         let internal = ConcurrentTmpInternalGraphNode::empty(node.f, node.name.clone(), node.id);
-
         let mut internal_arc = Arc::new(internal);
 
         // 2. initiate structure
         id_to_internal_node.insert(node.id, Arc::clone(&internal_arc));
-        nodes.push_back(node);
+        id_to_parent_ids.insert(node.id, HashSet::new());
+        bfs_q.push_back(node);
         internal_nodes.push_back(Arc::clone(&internal_arc));
 
         // 3. iterate over graph bfs style.
-        while nodes.len() != 0 {
-            let node = nodes.pop_front().unwrap();
+        while bfs_q.len() != 0 {
+            let node = bfs_q.pop_front().unwrap();
             let internal_node = internal_nodes.pop_front().unwrap();
+
 
             for child in node.children.iter() {
 
@@ -200,11 +201,24 @@ impl <T> ConcurrentTmpInternalGraphNode<T> where T: Clone {
                         Arc::new(ConcurrentTmpInternalGraphNode::empty(child.f, child.name.clone(), child.id))
                     }
                 };
-                new_internal.parents.borrow_mut().push(Arc::clone(&internal_node));
+
+                let parent_ids_opt = id_to_parent_ids.get(&child.id);
+                if parent_ids_opt.is_none() || !parent_ids_opt.unwrap().contains(&internal_node.id) {
+                    new_internal.parents.borrow_mut().push(Arc::clone(&internal_node));
+                }
+                if parent_ids_opt.is_some() {
+                    let ids = id_to_parent_ids.get_mut(&child.id).unwrap();
+                    ids.insert(internal_node.id);
+                } else {
+                    let mut ids = HashSet::new();
+                    ids.insert(internal_node.id);
+                    id_to_parent_ids.insert(new_internal.id, ids);
+                }
+
                 id_to_internal_node.insert(new_internal.id, Arc::clone(&new_internal));
 
                 internal_nodes.push_back(Arc::clone(&new_internal));
-                nodes.push_back(Arc::clone(child));
+                bfs_q.push_back(Arc::clone(child));
                 internal_arc = new_internal;
             }
         }

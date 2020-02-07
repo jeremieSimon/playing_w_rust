@@ -89,9 +89,9 @@ In the example above, the execution plan will look like this.\
 --------------------------------**Thread4**: `[node_4 -> node_6, node_6 -> node_7]`\
 ----------------------------------------------------------------------------------**Thread5**: `[node_7 -> node_8]`
 
+This is not very optimal because the you could argue that **Thread2** should fork directly which is not what's happening in the current implementation.
 
-
-
+#
 ### The Pipeline package
 
 This is mostly me playing w rust. 

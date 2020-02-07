@@ -4,8 +4,15 @@ use std::thread::spawn;
 
 use crate::graph::serial::{GraphNode, ComputeGraph};
 use crate::graph::easy_functions;
+use crate::graph::io_graph;
 use crate::graph::concurrent::{ConcurrentGraphNode, ConcurrentComputeGraph};
 use crate::pipeline::word_count::WordCount;
+use std::collections::HashMap;
+use std::borrow::BorrowMut;
+use std::env::var;
+use std::cell::RefCell;
+use uuid::Uuid;
+use atomic_refcell;
 
 extern crate serde;
 extern crate serde_json;
@@ -21,6 +28,9 @@ fn main() {
 
     println!("--- playing w concurrent graph");
     concurrent_graph_example();
+
+    println!("--- playing w io concurrent graph");
+    concurrent_io_graph();
 
     println!("--- playing w a par map example");
     par_map_example();
@@ -124,4 +134,87 @@ fn word_count() {
     for (k, v) in reduce_output.iter() {
         println!("{}, {}", k, v);
     }
+}
+
+fn concurrent_io_graph() {
+
+
+    /*
+               node_5
+              /      \
+             /        \
+            /          \
+        node_4        node_7
+          / \        /       \
+         /   \      /         \
+        /     node_6           \
+node_1 /                       node_8
+       \                       /
+        \                     /
+         \                   /
+         node_2 ----- node_3
+
+    */
+
+    let node8 = Arc::new(graph::concurrent::ConcurrentGraphNode::new(
+        easy_functions::add_one,
+        String::from("node 8"),
+        vec![],
+    ));
+
+    let mid_node7 = Arc::new(
+        graph::concurrent::ConcurrentGraphNode::new(
+            easy_functions::add_one,
+            String::from("node 7"),
+            vec![Arc::clone(&node8)],
+        ));
+
+    let mid_node3 = Arc::new(
+        graph::concurrent::ConcurrentGraphNode::new(
+            easy_functions::add_one,
+            String::from("node 3"),
+            vec![Arc::clone(&node8)],
+        ));
+
+    let mid_node5 = Arc::new(
+        graph::concurrent::ConcurrentGraphNode::new(
+            easy_functions::add_one,
+            String::from("node 5"),
+            vec![Arc::clone(&mid_node7)],
+            ));
+
+    let mid_node6 = Arc::new(
+        graph::concurrent::ConcurrentGraphNode::new(
+            easy_functions::add_one,
+            String::from("node 6"),
+            vec![Arc::clone(&mid_node7)],
+            )
+    );
+
+    let mid_node4 = Arc::new(
+        graph::concurrent::ConcurrentGraphNode::new(
+            easy_functions::add_one,
+            String::from("node 4"),
+            vec![Arc::clone(&mid_node5), Arc::clone(&mid_node6)],
+            )
+    );
+
+    let mid_node2 = Arc::new(
+        graph::concurrent::ConcurrentGraphNode ::new(
+            easy_functions::add_one,
+            String::from("node 2"),
+            vec![Arc::clone(&mid_node3)],
+            )
+    );
+
+    let node1 = Arc::new(
+        graph::concurrent::ConcurrentGraphNode::new(
+            easy_functions::add_one,
+            String::from("node 1"),
+            vec![Arc::clone(&mid_node2), Arc::clone(&mid_node4)])
+    );
+
+    let computable_graph = io_graph::IoConcurrentComputeGraph::new(Arc::clone(&node1));
+    let results = computable_graph.apply(vec![1.0, 2.0]);
+    println!("{:?}", results);
 }
