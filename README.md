@@ -1,7 +1,7 @@
 ### Playing w/ rust
 
 ### Graph Package
-In this package there are 3 different implementations of `ComputableGraph`: A normal (serial) implementation, and 2 concurrent ones.
+In this package there are 3 different implementations of `ComputableGraph`: A normal (serial) implementation, and 2 concurrent ones (`ConcurrentComputeGraph`, `IoConcurrentComputeGraph`).
 
 **Logic Flow**\
 At a very high level, the flow is as follow: given a user defined graph (concurrent or not)
