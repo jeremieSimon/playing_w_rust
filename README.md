@@ -11,6 +11,7 @@ At a very high level, the flow is as follow: given a user defined graph (concurr
 - Both graph can work on a datum or a batch of data. 
 
 ### *Parallelism Design*
+#
 **The `ConcurrentComputeGraph`**\
 For a single datum or batch of data, each node is ran within the same thread.  
 The user if this API can then divide its data so that each datum, can run in a different thread.
@@ -29,9 +30,11 @@ We might want to say that some operations can be vectorized and use SIMD instruc
 
 All the above pros hold when the operators in a graph are CPU bounded. 
 If we were to have operators with lots of I/O we could and should rethink this strategy.
-
+#
 **The `IoConcurrentComputeGraph`**\
-For this graph we take a different approach. We say that for some graphs with forking patterns:
+For this graph we take a different approach. We say that for some graphs with forking patterns:\
+
+**Figure 1.1**
 ```$xslt
             node_2
            /
@@ -44,6 +47,48 @@ For this graph we take a different approach. We say that for some graphs with fo
 
 `node_2` and `node_3` can be executed in different threads.
 The motivation here is to say that if operators are I/O bounded, then having a single thread blocking until a syscall comes back is a waste of resources.
+
+The code is broken into 2 pieces, we have a `scheduler` and some `executor`
+
+The `scheduler` runs on the main thread. The `scehduler` comes up with an executable plan, and sends it to the executor. 
+The `executor` is then executing the plan on a different thread.
+
+We have an internal representation of the graph where we add some meta information to each node. 
+We add 2 important piece of information. 
+1. We say that a node is `Joinable` if it has multiple parents.\
+In **Figure 1.2**, *node_7*, and *node_8* are both `joinable`.
+
+2. We say that a node is `Forkable` if it has multiple children\
+In **Figure 1.2**, *node_1*, and *node_4* are both `forkable`.
+
+#
+Let's see a what a more compelling graph could look like.\
+**Figure 1.2**
+
+```$xslt
+              node_5
+              /      \
+             /        \
+            /          \
+        node_4        node_7
+          / \        /       \
+         /   \      /         \
+        /     node_6           \
+node_1 /                       node_8
+       \                       /
+        \                     /
+         \                   /
+         node_2 ----- node_3
+
+``` 
+
+In the example above, the execution plan will look like this.\
+**Thread1**: `[node_1 -> node_2, node_2 -> node_3, node_3 -> node_8]`\
+**Thread2**: `[node_1 -> node_4]`\
+--------------------------------**Thread3**: `[node_4 -> node_5, node_5 -> node_7]`\
+--------------------------------**Thread4**: `[node_4 -> node_6, node_6 -> node_7]`\
+----------------------------------------------------------------------------------**Thread5**: `[node_7 -> node_8]`
+
 
 
 
